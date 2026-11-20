@@ -77,7 +77,14 @@ def run_experiments(output_dir, seed=0, max_iterations=100):
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    data, _ = make_toy_data()
+    data, true_labels = make_toy_data()
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.scatter(data[:, 0], data[:, 1], c=true_labels, cmap="tab10", s=9,
+               alpha=0.65, linewidths=0)
+    ax.set(title="Ground truth: four generating clusters", xlabel="x1", ylabel="x2")
+    fig.tight_layout()
+    fig.savefig(output_dir / "ground_truth.png", dpi=180)
+    plt.close(fig)
     rng = np.random.default_rng(seed)
     for k in K_VALUES:
         initial_centroids = get_initial_clusters(k, data, rng)

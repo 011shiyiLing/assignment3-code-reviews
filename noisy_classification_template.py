@@ -54,7 +54,9 @@ def repair_labels_knn(train_features, noisy_labels, neighbors):
     and replace each label with the majority label of those neighbors.
     Five binary votes cannot tie; break equal-distance neighbor ties consistently.
     Exclude each point itself from its neighborhood. Base all repairs on
-    the original noisy labels, so row ordering does not affect the outcome.
+    the original noisy labels, so repairs do not depend on update order.
+    Equal-distance ties favor the lower training-row index. This is deterministic
+    for a fixed input order; permuting equidistant samples can change the result.
     sklearn.neighbors may be used; from-scratch K-NN is not a source requirement.
     """
     import numpy as np
@@ -63,14 +65,24 @@ def repair_labels_knn(train_features, noisy_labels, neighbors):
     noisy_labels = np.asarray(noisy_labels)
     if not 1 <= neighbors < len(train_features):
         raise ValueError("neighbors must be positive and smaller than the training set")
-    search = NearestNeighbors(n_neighbors=len(train_features), metric="euclidean")
+    # One extra non-self neighbor detects ties at the voting boundary.
+    query_count = min(neighbors + 1, len(train_features) - 1)
+    search = NearestNeighbors(n_neighbors=query_count, metric="euclidean")
     search.fit(train_features)
-    distances, indices = search.kneighbors(train_features)
+    # With X omitted, sklearn excludes each row itself, including duplicates.
+    distances, indices = search.kneighbors()
     repaired = np.empty_like(noisy_labels)
     for row in range(len(train_features)):
-        valid = indices[row] != row
-        row_indices = indices[row][valid]
-        row_distances = distances[row][valid]
+        row_indices = indices[row]
+        row_distances = distances[row]
+        if query_count > neighbors and row_distances[neighbors - 1] == row_distances[neighbors]:
+            # Retrieve all boundary ties only when needed, one row at a time.
+            radius = np.nextafter(row_distances[neighbors - 1], np.inf)
+            tied_distances, tied_indices = search.radius_neighbors(
+                train_features[row:row + 1], radius=radius)
+            valid = tied_indices[0] != row
+            row_indices = tied_indices[0][valid]
+            row_distances = tied_distances[0][valid]
         order = np.lexsort((row_indices, row_distances))[:neighbors]
         votes = noisy_labels[row_indices[order]]
         repaired[row] = 1 if votes.sum() > 0 else -1

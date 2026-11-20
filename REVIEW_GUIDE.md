@@ -29,5 +29,21 @@ The plotting commands save images without opening a graphical window.
 | Script | Output |
 | --- | --- |
 | `assignment3_template.py` | `svm_data.png` and terminal output for the support vectors, weights, bias, and margin |
-| `kmeans_template.py` | Five plots in `results/kmeans/` for k values 2, 3, 4, 6, and 10 |
+| `kmeans_template.py` | Five plots in `results/kmeans/` for k values 2, 3, 4, 6, and 10, plus `ground_truth.png` showing the four generating groups |
 | `noisy_classification_template.py` | Twenty trial results in `results/noise_comparison.csv` and mean accuracies in the terminal |
+
+## Review revisions
+
+K-NN repair queries five other training points plus one extra candidate to detect
+distance ties at the selection boundary. Only tied rows require a radius query;
+the routine no longer stores all pairwise neighbor results. Equal-distance ties
+favor the lower training-row index, so permuting tied samples can affect repairs.
+All votes still use the original noisy labels. Ground-truth cluster labels are
+used only for the new reference plot, never for K-means fitting.
+
+Run the regression checks (random data, equidistant samples, duplicate points,
+the smallest valid training set, and invalid neighbor counts) with:
+
+```bash
+python -m unittest -v test_noisy_classification.py
+```
